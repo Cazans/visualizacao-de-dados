@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Volume de chuva acumulada por ano (2015 a 2024) - Fazenda Carnaúba - Taperoá - PB</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+  <style>
+    body {
+      background: #f9f9f9;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    #main {
+      width: 90%;
+      height: 600px;
+      margin: auto;
+    }
+  </style>
+</head>
+<body>
+  <h2>Volume de chuva acumulada por ano (2015 a 2024)<br>Fazenda Carnaúba - Taperoá - PB</h2>
+  <div id="main"></div>
+
+  <script>
+    var chart = echarts.init(document.getElementById('main'));
+
+    // Dados filtrados apenas 2015 a 2024
+    var anos = [2015,2016,2017,2018,2019,2020,2021,2022,2023,2024];
+    var chuva = [386.7,295,211.5,764.8,497.9,591.3,388.5,938.6,465.6,378.2];
+
+    var option = {
+      tooltip: {
+        trigger: 'axis',
+        formatter: function (params) {
+          let p = params[0];
+          return `<b>${p.axisValue}</b><br/>Total: ${p.data} mm`;
+        }
+      },
+      toolbox: {
+        feature: {
+          saveAsImage: { title: "Salvar imagem" }
+        }
+      },
+      dataZoom: [
+        { type: 'inside', start: 0, end: 100 },
+        { type: 'slider', start: 0, end: 100 }
+      ],
+      xAxis: {
+        type: 'category',
+        data: anos,
+        boundaryGap: false
+      },
+      yAxis: {
+        type: 'value',
+        name: 'Chuva (mm)',
+        axisLabel: { formatter: '{value} mm' }
+      },
+      series: [{
+        name: 'Chuva acumulada',
+        type: 'line',
+        smooth: true,
+        symbol: 'circle',
+        symbolSize: 10,
+        itemStyle: {
+          color: '#1f78b4'
+        },
+        areaStyle: {
+          color: 'rgba(30,144,255,0.2)'
+        },
+        data: chuva
+      }]
+    };
+
+    chart.setOption(option);
+  </script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Variação da chuva acumulada por ano (2015 a 2024) - Fazenda Carnaúba - Taperoá - PB</title>
+  <script src="https://cdn.jsdelivr.net/npm/echarts/dist/echarts.min.js"></script>
+  <style>
+    body {
+      background: #f9f9f9;
+      font-family: Arial, sans-serif;
+      text-align: center;
+    }
+    #controls {
+      margin: 15px;
+    }
+    #main {
+      width: 90%;
+      height: 600px;
+      margin: auto;
+    }
+  </style>
+</head>
+<body>
+  <h2>Variação da chuva acumulada por ano (2015 a 2024)<br>Fazenda Carnaúba - Taperoá - PB</h2>
+
+  <div id="controls">
+    <label for="filter">Filtrar variação:</label>
+    <select id="filter">
+      <option value="all">Todos</option>
+      <option value="positive">Somente positivos</option>
+      <option value="negative">Somente negativos</option>
+    </select>
+  </div>
+
+  <div id="main"></div>
+
+  <script>
+    var chart = echarts.init(document.getElementById('main'));
+
+    // Agora incluindo 2015 (comparado a 2014)
+    var anos = [2015,2016,2017,2018,2019,2020,2021,2022,2023,2024];
+    var variacoes = [-17.9, -91.7, -83.5, 553.3, -266.9, 93.4, -202.8, 550.1, -473, -87.4];
+
+    function getOption(filterType) {
+      let anosFiltrados = [];
+      let varFiltradas = [];
+
+      for (let i = 0; i < anos.length; i++) {
+        let v = variacoes[i];
+        if (filterType === "positive" && v <= 0) continue;
+        if (filterType === "negative" && v >= 0) continue;
+        anosFiltrados.push(anos[i]);
+        varFiltradas.push(v);
+      }
+
+      return {
+        tooltip: {
+          trigger: 'axis',
+          formatter: function (params) {
+            let p = params[0];
+            return `<b>${p.axisValue}</b><br/>Variação: ${p.data} mm`;
+          }
+        },
+        dataZoom: [
+          { type: 'inside', start: 0, end: 100 },
+          { type: 'slider', start: 0, end: 100 }
+        ],
+        xAxis: {
+          type: 'category',
+          data: anosFiltrados
+        },
+        yAxis: {
+          type: 'value',
+          name: 'Variação em\nrelação ao ano\nanterior(mm)',
+          axisLabel: { formatter: '{value} mm' }
+        },
+        series: [{
+          name: 'Variação',
+          type: 'bar',
+          data: varFiltradas,
+          itemStyle: {
+            color: function (params) {
+              return params.data >= 0 ? '#1f78b4' : '#e31a1c';
+            }
+          }
+        }]
+      };
+    }
+
+    // Inicialização
+    chart.setOption(getOption("all"));
+
+    // Filtro de interação
+    document.getElementById("filter").addEventListener("change", function(e) {
+      chart.setOption(getOption(e.target.value));
+    });
+  </script>
+</body>
+</html>
