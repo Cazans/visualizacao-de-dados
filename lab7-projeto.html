@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Balança Comercial do Brasil (1997-2025)</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.5.0/echarts.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+  <script src="https://echarts.apache.org/en/asset/map/js/world.js"></script>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: #f8f9fa;
+    }
+    #controls {
+      padding: 5px 10px;
+      background: #fff;
+      border-bottom: 1px solid #ccc;
+    }
+    #map { flex: 2; }
+    #line { flex: 1; }
+    select { margin-right: 20px; }
+  </style>
+</head>
+<body>
+  <div id="controls">
+    <label for="tipoSelect">Métrica do mapa: </label>
+    <select id="tipoSelect">
+      <option value="EXP">Exportações</option>
+      <option value="IMP">Importações</option>
+      <option value="BAL">Balança</option>
+    </select>
+  </div>
+
+  <div id="map"></div>
+  <div id="line"></div>
+
+  <script>
+    const mapChart = echarts.init(document.getElementById('map'));
+    const lineChart = echarts.init(document.getElementById('line'));
+    let dataset;
+    let anos = [];
+    let tipoAtual = 'EXP';
+
+    function getMapData(tipo, ano) {
+      const dataAno = dataset[tipo][ano];
+      return dataAno.map(d => ({
+        name: d.name,
+        value: d.us_value
+      }));
+    }
+
+    function atualizarMapa(ano) {
+      const mapData = getMapData(tipoAtual, ano);
+      const mapOption = {
+        title: {
+          text: tipoAtual === 'BAL' ? `Balança Comercial do Brasil (${ano})` :
+                tipoAtual === 'EXP' ? `Exportações do Brasil (${ano})` :
+                `Importações do Brasil (${ano})`,
+          left: 'center'
+        },
+        tooltip: {
+          trigger: 'item',
+          formatter: params => {
+            return params.name + ': US$ ' + (params.value ? params.value.toLocaleString() : 'Sem dados');
+          }
+        },
+        visualMap: {
+          min: Math.min(...mapData.map(d => d.value)),
+          max: Math.max(...mapData.map(d => d.value)),
+          text: ['Alto', 'Baixo'],
+          realtime: true,
+          calculable: true,
+          left: 'left',
+          bottom: '10%',
+          inRange: { color: ['#d73027','#ffffbf','#1a9850'] }
+        },
+        series: [{
+          name: tipoAtual,
+          type: 'map',
+          map: 'world',
+          roam: true,
+          emphasis: { label: { show: true }},
+          data: mapData
+        }]
+      };
+      mapChart.setOption(mapOption);
+    }
+
+    function atualizarLinha(country) {
+      const expSeries = anos.map(y => {
+        const entry = dataset.EXP[y].find(d => d.name === country);
+        return entry ? entry.us_value : 0;
+      });
+      const impSeries = anos.map(y => {
+        const entry = dataset.IMP[y].find(d => d.name === country);
+        return entry ? entry.us_value : 0;
+      });
+      const balSeries = anos.map((_, i) => expSeries[i] - impSeries[i]);
+
+      lineChart.setOption({
+        title: { text: 'Série Temporal - ' + country },
+        series: [
+          { name: 'Exportações', data: expSeries },
+          { name: 'Importações', data: impSeries },
+          { name: 'Balança', data: balSeries }
+        ]
+      });
+    }
+
+    $.getJSON('BR-exportacoes_importacoes_2025.json', function (jsonData) {
+      dataset = jsonData;
+      anos = Object.keys(dataset.BAL).sort();
+
+      // Configuração do mapa inicial usando o último ano
+      atualizarMapa(anos[anos.length-1]);
+
+      // Configuração do gráfico de linhas com dataZoom horizontal
+      const lineOption = {
+        title: { text: 'Série Temporal (Exportações, Importações e Balança)', left: 'center' },
+        tooltip: { trigger: 'axis' },
+        legend: { top: 30, data: ['Exportações', 'Importações', 'Balança'] },
+        xAxis: { type: 'category', name: 'Ano', data: anos },
+        yAxis: { type: 'value', name: 'US$' },
+        dataZoom: [
+          { type: 'slider', xAxisIndex: 0, start: 80, end: 100 }, // controle do zoom
+          { type: 'inside', xAxisIndex: 0 } // zoom pelo scroll
+        ],
+        series: [
+          { name: 'Exportações', type: 'line', data: anos.map(y => dataset.EXP[y].reduce((sum,c)=>sum+c.us_value,0)) },
+          { name: 'Importações', type: 'line', data: anos.map(y => dataset.IMP[y].reduce((sum,c)=>sum+c.us_value,0)) },
+          { name: 'Balança', type: 'line', data: anos.map(y => dataset.BAL[y].reduce((sum,c)=>sum+c.us_value,0)) }
+        ]
+      };
+
+      lineChart.setOption(lineOption);
+
+      // Atualizar mapa ao alterar a janela de dataZoom
+      lineChart.on('dataZoom', function (params) {
+        const axis = lineChart.getOption().xAxis[0];
+        const startIndex = Math.round(axis.data.length * params.batch[0].start / 100);
+        const endIndex = Math.round(axis.data.length * params.batch[0].end / 100);
+        const anosVisiveis = axis.data.slice(startIndex, endIndex);
+        if (anosVisiveis.length > 0) {
+          const anoFinal = anosVisiveis[anosVisiveis.length-1];
+          atualizarMapa(anoFinal);
+        }
+      });
+
+      // Clique no mapa → atualizar gráfico
+      mapChart.on('click', params => atualizarLinha(params.name));
+
+      document.getElementById('tipoSelect').addEventListener('change', function() {
+        tipoAtual = this.value;
+        // Atualiza mapa usando último ano visível
+        const axis = lineChart.getOption().xAxis[0];
+        const endIndex = axis.data.length - 1;
+        const anoFinal = axis.data[endIndex];
+        atualizarMapa(anoFinal);
+      });
+
+      window.addEventListener('resize', () => {
+        mapChart.resize();
+        lineChart.resize();
+      });
+    });
+  </script>
+</body>
+</html>
